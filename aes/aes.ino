@@ -21,7 +21,6 @@ void loop() {
   
   for(int i = 0; i<16; i++)
   {
-      delay(1);
       Serial.write(plaintext[i]);
   }
   //Serial.println();
@@ -34,10 +33,10 @@ void loop() {
   digitalWrite(OUTPIN, LOW);
   AES128_ECB_decrypt(buf, key, buf2);
   //Serial.println("Decrypted");
-  int same = !(memcmp(buf2, plaintext, 16));
+  //int same = !(memcmp(buf2, plaintext, 16));
   //if(same)
-    //Serial.println("SUCCESS!");
+  //  Serial.println("SUCCESS!");
   //else
-    //Serial.println("FAILURE!");
+  //  Serial.println("FAILURE!");
   //delay(500);
 }
