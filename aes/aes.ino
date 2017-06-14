@@ -9,32 +9,35 @@ uint8_t buf2[16];
 void setup() {
   // put your setup code here, to run once:
   pinMode(OUTPIN, OUTPUT);
-  Serial.setTimeout(10000); 
+  Serial.setTimeout(100000); 
   Serial.begin(115200);
 }
 
-uint8_t plaintext[16];
+uint8_t plaintext[17];
 
 void loop() {
   // put your main code here, to run repeatedly:
-  Serial.readBytesUntil('\n', plaintext, 16);
-
-  Serial.println("Plaintext:");
+  Serial.readBytesUntil('\n', plaintext, 17);
+  
   for(int i = 0; i<16; i++)
-      Serial.print(plaintext[i]);
-  Serial.println();
+  {
+      delay(1);
+      Serial.write(plaintext[i]);
+  }
+  //Serial.println();
+
       
   digitalWrite(OUTPIN,HIGH);
-  Serial.println("Starting encryption");
+  //Serial.println("Starting encryption");
   AES128_ECB_encrypt(plaintext, key, buf);
-  Serial.println("Encrypted");
+  //Serial.println("Encrypted");
   digitalWrite(OUTPIN, LOW);
   AES128_ECB_decrypt(buf, key, buf2);
-  Serial.println("Decrypted");
+  //Serial.println("Decrypted");
   int same = !(memcmp(buf2, plaintext, 16));
-  if(same)
-    Serial.println("SUCCESS!");
-  else
-    Serial.println("FAILURE!");
+  //if(same)
+    //Serial.println("SUCCESS!");
+  //else
+    //Serial.println("FAILURE!");
   //delay(500);
 }
