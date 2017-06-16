@@ -243,16 +243,17 @@ static void AddRoundKey(uint8_t round)
 static void SubBytes(void)
 {
     uint8_t i, j;
+    //randomize indices
+    uint8_t outerInd[] = {0,1,2,3};
+    shuffle(outerInd, 4);
     for(i = 0; i < 4; ++i)
     {
-        //randomize indices
-        uint8_t outerInd[] = {0,1,2,3};
-        shuffle(outerInd, 4);
+        uint8_t innerInd[] = {0,1,2,3};
+        shuffle(innerInd, 4);
         for(j = 0; j < 4; ++j)
         {
-            uint8_t innerInd[] = {0,1,2,3};
-            shuffle(outerInd, 4);
-            (*state)[outerInd[j]][innerInd[i]] = getSBoxValue((*state)[outerInd[j]][innerInd[i]]);
+            (*state)[outerInd[i]][innerInd[j]] = getSBoxValue((*state)[outerInd[i]][innerInd[j]]);
+            /*(*state)[i][j] = getSBoxValue((*state)[i][j]);*/
         }
     }
 }
