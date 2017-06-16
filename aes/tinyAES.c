@@ -64,6 +64,8 @@ You should pad the end of the string with zeros if this is not the case.
 // state - array holding the intermediate results during decryption.
 typedef uint8_t state_t[4][4];
 static state_t* state;
+//this also allocates memory for the garbageState
+static state_t garbageState;
 
 // The array that stores the round keys.
 static uint8_t RoundKey[176];
@@ -226,34 +228,28 @@ static void KeyExpansion(void)
 
 // This function adds the round key to state.
 // The round key is added to the state by an XOR function.
-static void AddRoundKey(uint8_t round)
+static void AddRoundKey(uint8_t round, state_t* tmpState)
 {
     uint8_t i,j;
     for(i=0;i<4;++i)
     {
         for(j = 0; j < 4; ++j)
         {
-            (*state)[i][j] ^= RoundKey[round * Nb * 4 + i * Nb + j];
+            (*tmpState)[i][j] ^= RoundKey[round * Nb * 4 + i * Nb + j];
         }
     }
 }
 
 // The SubBytes Function Substitutes the values in the
 // state matrix with values in an S-box.
-static void SubBytes(void)
+static void SubBytes(state_t* tmpState)
 {
     uint8_t i, j;
-    //randomize indices
-    uint8_t outerInd[] = {0,1,2,3};
-    shuffle(outerInd, 4);
     for(i = 0; i < 4; ++i)
     {
-        uint8_t innerInd[] = {0,1,2,3};
-        shuffle(innerInd, 4);
         for(j = 0; j < 4; ++j)
         {
-            (*state)[outerInd[i]][innerInd[j]] = getSBoxValue((*state)[outerInd[i]][innerInd[j]]);
-            /*(*state)[i][j] = getSBoxValue((*state)[i][j]);*/
+            (*tmpState)[i][j] = getSBoxValue((*tmpState)[i][j]);
         }
     }
 }
@@ -261,32 +257,32 @@ static void SubBytes(void)
 // The ShiftRows() function shifts the rows in the state to the left.
 // Each row is shifted with different offset.
 // Offset = Row number. So the first row is not shifted.
-static void ShiftRows(void)
+static void ShiftRows(state_t* tmpState)
 {
     uint8_t temp;
 
     // Rotate first row 1 columns to left  
-    temp           = (*state)[0][1];
-    (*state)[0][1] = (*state)[1][1];
-    (*state)[1][1] = (*state)[2][1];
-    (*state)[2][1] = (*state)[3][1];
-    (*state)[3][1] = temp;
+    temp           = (*tmpState)[0][1];
+    (*tmpState)[0][1] = (*tmpState)[1][1];
+    (*tmpState)[1][1] = (*tmpState)[2][1];
+    (*tmpState)[2][1] = (*tmpState)[3][1];
+    (*tmpState)[3][1] = temp;
 
     // Rotate second row 2 columns to left  
-    temp           = (*state)[0][2];
-    (*state)[0][2] = (*state)[2][2];
-    (*state)[2][2] = temp;
+    temp           = (*tmpState)[0][2];
+    (*tmpState)[0][2] = (*tmpState)[2][2];
+    (*tmpState)[2][2] = temp;
 
-    temp       = (*state)[1][2];
-    (*state)[1][2] = (*state)[3][2];
-    (*state)[3][2] = temp;
+    temp       = (*tmpState)[1][2];
+    (*tmpState)[1][2] = (*tmpState)[3][2];
+    (*tmpState)[3][2] = temp;
 
     // Rotate third row 3 columns to left
-    temp       = (*state)[0][3];
-    (*state)[0][3] = (*state)[3][3];
-    (*state)[3][3] = (*state)[2][3];
-    (*state)[2][3] = (*state)[1][3];
-    (*state)[1][3] = temp;
+    temp       = (*tmpState)[0][3];
+    (*tmpState)[0][3] = (*tmpState)[3][3];
+    (*tmpState)[3][3] = (*tmpState)[2][3];
+    (*tmpState)[2][3] = (*tmpState)[1][3];
+    (*tmpState)[1][3] = temp;
 }
 
 static uint8_t xtime(uint8_t x)
@@ -295,18 +291,18 @@ static uint8_t xtime(uint8_t x)
 }
 
 // MixColumns function mixes the columns of the state matrix
-static void MixColumns(void)
+static void MixColumns(state_t* tmpState)
 {
     uint8_t i;
     uint8_t Tmp,Tm,t;
     for(i = 0; i < 4; ++i)
     {  
-        t   = (*state)[i][0];
-        Tmp = (*state)[i][0] ^ (*state)[i][1] ^ (*state)[i][2] ^ (*state)[i][3] ;
-        Tm  = (*state)[i][0] ^ (*state)[i][1] ; Tm = xtime(Tm);  (*state)[i][0] ^= Tm ^ Tmp ;
-        Tm  = (*state)[i][1] ^ (*state)[i][2] ; Tm = xtime(Tm);  (*state)[i][1] ^= Tm ^ Tmp ;
-        Tm  = (*state)[i][2] ^ (*state)[i][3] ; Tm = xtime(Tm);  (*state)[i][2] ^= Tm ^ Tmp ;
-        Tm  = (*state)[i][3] ^ t ;        Tm = xtime(Tm);  (*state)[i][3] ^= Tm ^ Tmp ;
+        t   = (*tmpState)[i][0];
+        Tmp = (*tmpState)[i][0] ^ (*tmpState)[i][1] ^ (*tmpState)[i][2] ^ (*tmpState)[i][3] ;
+        Tm  = (*tmpState)[i][0] ^ (*tmpState)[i][1] ; Tm = xtime(Tm);  (*tmpState)[i][0] ^= Tm ^ Tmp ;
+        Tm  = (*tmpState)[i][1] ^ (*tmpState)[i][2] ; Tm = xtime(Tm);  (*tmpState)[i][1] ^= Tm ^ Tmp ;
+        Tm  = (*tmpState)[i][2] ^ (*tmpState)[i][3] ; Tm = xtime(Tm);  (*tmpState)[i][2] ^= Tm ^ Tmp ;
+        Tm  = (*tmpState)[i][3] ^ t ;        Tm = xtime(Tm);  (*tmpState)[i][3] ^= Tm ^ Tmp ;
     }
 }
 
@@ -399,26 +395,39 @@ static void InvShiftRows(void)
 static void Cipher(void)
 {
     uint8_t round = 0;
+    state_t* states[2] = {state, &garbageState};
 
-    // Add the First round key to the state before starting the rounds.
-    AddRoundKey(0); 
+    //TODO: fill garbage state with random data
+
 
     // There will be Nr rounds.
     // The first Nr-1 rounds are identical.
     // These Nr-1 rounds are executed in the loop below.
-    for(round = 1; round < Nr; ++round)
+    for(round = 0; round <= Nr; ++round)
     {
-        SubBytes();
-        ShiftRows();
-        MixColumns();
-        AddRoundKey(round);
+        int j = 0;
+        if(round == Nr){
+            // The last round is given below.
+            // The MixColumns function is not here in the last round.
+            SubBytes(states[j]);
+            ShiftRows(states[j]);
+            AddRoundKey(Nr, states[j]);
+        }else{
+            if(!round){
+                //we are in the first round, we also need to randomize this
+                // Add the First round key to the state before starting the rounds.
+                AddRoundKey(0, states[j]); 
+                continue;
+            }
+            SubBytes(states[j]);
+            ShiftRows(states[j]);
+            MixColumns(states[j]);
+            AddRoundKey(round, states[j]);
+        }
+
+        round -= j;
     }
 
-    // The last round is given below.
-    // The MixColumns function is not here in the last round.
-    SubBytes();
-    ShiftRows();
-    AddRoundKey(Nr);
 }
 
 static void InvCipher(void)
@@ -426,7 +435,7 @@ static void InvCipher(void)
     uint8_t round=0;
 
     // Add the First round key to the state before starting the rounds.
-    AddRoundKey(Nr); 
+    AddRoundKey(Nr,state); 
 
     // There will be Nr rounds.
     // The first Nr-1 rounds are identical.
@@ -435,7 +444,7 @@ static void InvCipher(void)
     {
         InvShiftRows();
         InvSubBytes();
-        AddRoundKey(round);
+        AddRoundKey(round, state);
         InvMixColumns();
     }
 
@@ -443,7 +452,7 @@ static void InvCipher(void)
     // The MixColumns function is not here in the last round.
     InvShiftRows();
     InvSubBytes();
-    AddRoundKey(0);
+    AddRoundKey(0,state);
 }
 
 static void BlockCopy(uint8_t* output, const uint8_t* input)
