@@ -394,40 +394,51 @@ static void InvShiftRows(void)
 // Cipher is the main function that encrypts the PlainText.
 static void Cipher(void)
 {
-    uint8_t round = 0;
+    //roundNums[0] is the actual round counter
+    //roundNums[1] is for the garbage rounds
+    uint8_t roundNums[2] = {0,0};
     state_t* states[2] = {state, &garbageState};
 
-    //TODO: fill garbage state with random data
+    //fill garbage state with random data
+    for(uint8_t i=0; i<4; i++)
+        for(uint8_t j=0; j<4; j++)
+            garbageState[i][j] = (uint8_t) rand();
 
 
     // There will be Nr rounds.
-    // The first Nr-1 rounds are identical.
-    // These Nr-1 rounds are executed in the loop below.
-    for(round = 0; round <= Nr; ++round)
-    {
-        int j = 0;
-        if(round == Nr){
+    // I need 2*Nr+2 as upper bound here because an ouperation is performed in the Nr-th round, increasing numRounds[j] for that j to Nr+1
+    // (It is strictly less than, because if we reach 2*Nr+2 it means that we finished both full AES runs)
+    while(roundNums[0] + roundNums[1] < 2*Nr+2){
+        //if we are done with the data, use only garbage rounds
+        int lowerBound = roundNums[0]>Nr;
+        //if we are done with garbage rounds, use only actual data
+        int upperBound = 1+(roundNums[1]<=Nr);
+        //it should never happen (in theory) that upperBound == lowerBound
+        if(upperBound == lowerBound)
+            return -1;
+
+        int j = lowerBound + (rand() % (upperBound-lowerBound));
+        if(roundNums[j] == Nr){
             // The last round is given below.
             // The MixColumns function is not here in the last round.
             SubBytes(states[j]);
             ShiftRows(states[j]);
             AddRoundKey(Nr, states[j]);
         }else{
-            if(!round){
-                //we are in the first round, we also need to randomize this
-                // Add the First round key to the state before starting the rounds.
+            if(!roundNums[j]){
+                //Add the First round key to the state before starting the rounds.
                 AddRoundKey(0, states[j]); 
+                roundNums[j]++;
                 continue;
             }
             SubBytes(states[j]);
             ShiftRows(states[j]);
             MixColumns(states[j]);
-            AddRoundKey(round, states[j]);
+            AddRoundKey(roundNums[j], states[j]);
         }
 
-        round -= j;
+        roundNums[j]++;
     }
-
 }
 
 static void InvCipher(void)
