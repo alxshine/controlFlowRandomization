@@ -395,8 +395,6 @@ static void InvShiftRows(void)
 static void Cipher(void)
 {
     //roundNums[0] is the actual round counter
-    //roundNums[1] is for the garbage rounds
-    uint8_t roundNums[2] = {0,0};
     state_t* states[2] = {state, &garbageState};
 
     //fill garbage state with random data
@@ -404,6 +402,10 @@ static void Cipher(void)
         for(uint8_t j=0; j<4; j++)
             garbageState[i][j] = (uint8_t) rand();
 
+    AddRoundKey(0, states[0]);
+    AddRoundKey(0, states[1]);
+    //roundNums[1] is for the garbage rounds
+    uint8_t roundNums[2] = {1,1};
 
     // There will be Nr rounds.
     // I need 2*Nr+2 as upper bound here because an ouperation is performed in the Nr-th round, increasing numRounds[j] for that j to Nr+1
@@ -425,12 +427,6 @@ static void Cipher(void)
             ShiftRows(states[j]);
             AddRoundKey(Nr, states[j]);
         }else{
-            if(!roundNums[j]){
-                //Add the First round key to the state before starting the rounds.
-                AddRoundKey(0, states[j]); 
-                roundNums[j]++;
-                continue;
-            }
             SubBytes(states[j]);
             ShiftRows(states[j]);
             MixColumns(states[j]);
