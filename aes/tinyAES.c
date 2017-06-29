@@ -398,9 +398,9 @@ static void Cipher(void)
     state_t* states[2] = {state, &garbageState};
 
     //fill garbage state with random data
+    //this fills 4 bytes at a time
     for(uint8_t i=0; i<4; i++)
-        for(uint8_t j=0; j<4; j++)
-            garbageState[i][j] = (uint8_t) rand();
+        *(int*)garbageState[i] = (uint8_t) rand();
 
     AddRoundKey(0, states[0]);
     AddRoundKey(0, states[1]);
@@ -408,33 +408,32 @@ static void Cipher(void)
     uint8_t roundNums[2] = {1,1};
 
     // There will be Nr rounds.
-    // I need 2*Nr+2 as upper bound here because an ouperation is performed in the Nr-th round, increasing numRounds[j] for that j to Nr+1
-    // (It is strictly less than, because if we reach 2*Nr+2 it means that we finished both full AES runs)
-    while(roundNums[0] + roundNums[1] < 2*Nr+2){
+    // I need 2*Nr as upper bound here because we do the last round without randomization
+    while(roundNums[0] + roundNums[1] < 2*Nr){
         //if we are done with the data, use only garbage rounds
-        int lowerBound = roundNums[0]>Nr;
+        int lowerBound = roundNums[0]>=Nr;
         //if we are done with garbage rounds, use only actual data
-        int upperBound = 1+(roundNums[1]<=Nr);
+        int upperBound = 1+(roundNums[1]<Nr);
         //it should never happen (in theory) that upperBound == lowerBound
         if(upperBound == lowerBound)
             return -1;
 
         int j = lowerBound + (rand() % (upperBound-lowerBound));
-        if(roundNums[j] == Nr){
-            // The last round is given below.
-            // The MixColumns function is not here in the last round.
-            SubBytes(states[j]);
-            ShiftRows(states[j]);
-            AddRoundKey(Nr, states[j]);
-        }else{
-            SubBytes(states[j]);
-            ShiftRows(states[j]);
-            MixColumns(states[j]);
-            AddRoundKey(roundNums[j], states[j]);
-        }
+        SubBytes(states[j]);
+        ShiftRows(states[j]);
+        MixColumns(states[j]);
+        AddRoundKey(roundNums[j], states[j]);
+
 
         roundNums[j]++;
     }
+    SubBytes(states[0]);
+    ShiftRows(states[0]);
+    AddRoundKey(Nr, states[0]);
+
+    SubBytes(states[1]);
+    ShiftRows(states[1]);
+    AddRoundKey(Nr, states[1]);
 }
 
 static void InvCipher(void)
