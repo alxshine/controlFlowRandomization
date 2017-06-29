@@ -138,7 +138,7 @@ static const uint8_t Rcon[255] = {
 /* Private functions:                                                        */
 /*****************************************************************************/
 //requires srand() to be called before
-static void shuffle(uint8_t *arr, int len){
+static inline void shuffle(uint8_t *arr, int len){
     for(int i=len-1; i>0; i--){
         int j = rand()%i;
 
